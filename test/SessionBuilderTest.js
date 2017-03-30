@@ -141,5 +141,44 @@ describe('SessionBuilder', function() {
                 }).catch(done);
             });
         });
+
+        it.only('can deal with both peers creating a session before sending a message', (done) => {
+            generatePreKeyBundle(aliceStore, 1337, 1).then(function(preKeyBundle) {
+                var builder = new libsignal.SessionBuilder(bobStore, ALICE_ADDRESS);
+                builder.processPreKey(preKeyBundle).then(function() {
+                    aliceSessionCipher.encrypt(originalMessage).then( (alicePreKeyText) => {
+                        bobSessionCipher.encrypt(originalMessage).then( (bobPreKeyText) => { 
+                            bobSessionCipher.decryptPreKeyWhisperMessage(alicePreKeyText.body, 'binary').then( (alicePlainText) => {
+                                aliceSessionCipher.decryptPreKeyWhisperMessage(bobPreKeyText.body, 'binary').then( (bobPlainText) => { 
+                                    assertEqualArrayBuffers(alicePlainText, originalMessage);
+                                    assertEqualArrayBuffers(bobPlainText, originalMessage);
+                                    
+                                    for (var i = 0; i < 50; i++) {
+
+                                        aliceSessionCipher.encrypt(originalMessage).then( (aliceCipherText) => {
+                                            bobSessionCipher.encrypt(originalMessage).then( (bobCipherText) => {
+                                                bobSessionCipher.decryptWhisperMessage(aliceCipherText.body, 'binary').then( (aliceText) => {
+                                                    aliceSessionCipher.decryptWhisperMessage(bobCipherText.body, 'binary').then( (bobText) => {
+                                                        assertEqualArrayBuffers(aliceText, originalMessage);
+                                                        assertEqualArrayBuffers(bobText, originalMessage);
+
+                                                        console.log(util.toString(aliceText));
+                                                        console.log(util.toString(bobText));
+                                                    });
+                                                });
+
+                                            });
+                                        });
+
+                                    }  
+
+                                });
+                            });
+                        });
+                    });
+                    
+                });
+            }).then(done, done);
+        });
     });
 });
